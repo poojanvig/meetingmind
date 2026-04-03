@@ -197,16 +197,16 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
   };
 
   return (
-    <div className="border border-[#e5e5e5] rounded-xl overflow-hidden bg-white">
+    <div className="border border-indigo-100/80 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm shadow-lg shadow-indigo-500/5">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-indigo-50 bg-gradient-to-r from-indigo-50/80 to-violet-50/80">
         <div className="flex items-center gap-2">
-          <Upload className="w-3.5 h-3.5 text-[#999]" />
-          <span className="text-[13px] font-medium text-[#0a0a0a]">Upload recording</span>
+          <Upload className="w-3.5 h-3.5 text-indigo-500" />
+          <span className="text-[13px] font-medium text-indigo-700">Upload recording</span>
         </div>
         <div className="flex items-center gap-1.5">
           {['MP3', 'WAV', 'M4A', 'MP4', 'WEBM', 'MOV'].map(fmt => (
-            <span key={fmt} className="text-[10px] font-medium text-[#999] bg-white border border-[#eee] px-1.5 py-0.5 rounded">
+            <span key={fmt} className="text-[10px] font-medium text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
               {fmt}
             </span>
           ))}
@@ -230,92 +230,94 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
             onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
-              isDragging ? 'border-[#0a0a0a] bg-[#fafafa]' : 'border-[#ddd] hover:border-[#aaa]'
+            className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
+              isDragging ? 'border-indigo-400 bg-indigo-50/50 scale-[1.01]' : 'border-indigo-200/60 hover:border-indigo-300 hover:bg-indigo-50/30'
             }`}
           >
             <div className="flex items-center justify-center gap-8 mb-4">
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-[#f5f5f5] flex items-center justify-center mb-2">
-                  <FileAudio className="w-5 h-5 text-[#888]" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-2">
+                  <FileAudio className="w-5 h-5 text-indigo-500" />
                 </div>
-                <span className="text-[12px] text-[#999]">Audio</span>
+                <span className="text-[12px] text-indigo-400">Audio</span>
               </div>
-              <div className="text-[12px] text-[#ccc] font-medium">or</div>
+              <div className="text-[12px] text-indigo-300 font-medium">or</div>
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-[#f5f5f5] flex items-center justify-center mb-2">
-                  <FileVideo className="w-5 h-5 text-[#888]" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-2">
+                  <FileVideo className="w-5 h-5 text-violet-500" />
                 </div>
-                <span className="text-[12px] text-[#999]">Video</span>
+                <span className="text-[12px] text-violet-400">Video</span>
               </div>
             </div>
-            <p className="text-[13px] text-[#666]">
-              Drag and drop your file here, or <span className="text-[#0a0a0a] font-medium underline underline-offset-2">browse</span>
+            <p className="text-[13px] text-[#6b6b8a]">
+              Drag and drop your file here, or <span className="text-indigo-600 font-medium underline underline-offset-2 decoration-indigo-300">browse</span>
             </p>
-            <p className="text-[11px] text-[#bbb] mt-1.5">
+            <p className="text-[11px] text-[#a0a0be] mt-1.5">
               Audio track will be extracted from video files automatically
             </p>
           </div>
         ) : isTranscribing ? (
           <div className="flex flex-col items-center justify-center py-10">
-            <Loader2 className="w-8 h-8 text-[#0a0a0a] animate-spin mb-4" />
-            <p className="text-[14px] font-medium text-[#0a0a0a] mb-1">{transcribeStep}</p>
-            <p className="text-[12px] text-[#999]">This may take up to a minute depending on file size</p>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+            </div>
+            <p className="text-[14px] font-medium text-[#1a1637] mb-1">{transcribeStep}</p>
+            <p className="text-[12px] text-[#8a8aa8]">This may take up to a minute depending on file size</p>
             <div className="flex items-center gap-2 mt-5">
               {['Uploading', 'Transcribing', 'Analyzing', 'Saving'].map((step, i) => (
                 <div key={step} className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full transition-colors ${
+                  <div className={`w-2.5 h-2.5 rounded-full transition-all ${
                     transcribeStep.toLowerCase().includes(step.toLowerCase())
-                      ? 'bg-[#0a0a0a] scale-110'
+                      ? 'bg-gradient-to-r from-indigo-500 to-violet-500 scale-125 shadow-md shadow-indigo-500/50'
                       : ['Uploading', 'Transcribing', 'Analyzing', 'Saving']
                           .indexOf(step) < ['Uploading', 'Transcribing', 'Analyzing', 'Saving']
                           .findIndex(s => transcribeStep.toLowerCase().includes(s.toLowerCase()))
-                        ? 'bg-[#0a0a0a]'
-                        : 'bg-[#ddd]'
+                        ? 'bg-indigo-500'
+                        : 'bg-indigo-200'
                   }`} />
-                  {i < 3 && <div className="w-6 h-px bg-[#e5e5e5]" />}
+                  {i < 3 && <div className="w-6 h-px bg-indigo-200" />}
                 </div>
               ))}
             </div>
             <div className="flex items-center gap-4 mt-3">
               {['Upload', 'Transcribe', 'Analyze', 'Save'].map((label) => (
-                <span key={label} className="text-[10px] text-[#bbb] w-8 text-center">{label}</span>
+                <span key={label} className="text-[10px] text-indigo-400 w-8 text-center">{label}</span>
               ))}
             </div>
           </div>
         ) : (
           <div className="space-y-3">
             {/* Selected file */}
-            <div className="flex items-center gap-3 border border-[#e5e5e5] rounded-lg px-4 py-3 bg-[#fafafa]">
-              <div className="w-8 h-8 rounded-full bg-[#f0f0f0] flex items-center justify-center flex-shrink-0">
+            <div className="flex items-center gap-3 border border-indigo-100 rounded-xl px-4 py-3 bg-gradient-to-r from-indigo-50/50 to-violet-50/50">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-200 to-violet-200 flex items-center justify-center flex-shrink-0">
                 {isVideo
-                  ? <FileVideo className="w-4 h-4 text-[#666]" />
-                  : <FileAudio className="w-4 h-4 text-[#666]" />
+                  ? <FileVideo className="w-4 h-4 text-violet-600" />
+                  : <FileAudio className="w-4 h-4 text-indigo-600" />
                 }
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-[#0a0a0a] truncate">{selectedFile.name}</p>
-                <p className="text-[11px] text-[#999]">
+                <p className="text-[13px] font-medium text-[#1a1637] truncate">{selectedFile.name}</p>
+                <p className="text-[11px] text-[#8a8aa8]">
                   {getFileSizeMB(selectedFile).toFixed(2)} MB
-                  {isVideo && <span className="ml-2 text-[#bbb]">Audio will be extracted</span>}
+                  {isVideo && <span className="ml-2 text-violet-400">Audio will be extracted</span>}
                 </p>
               </div>
-              <button onClick={clearFile} className="p-1 rounded hover:bg-[#eee] transition-colors text-[#999] hover:text-[#666]">
+              <button onClick={clearFile} className="p-1 rounded-lg hover:bg-indigo-100 transition-colors text-[#a0a0be] hover:text-indigo-600">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Compressed file */}
             {compressedFile && (
-              <div className="flex items-center gap-2 text-[12px] text-[#666] bg-[#f0fdf4] border border-[#dcfce7] rounded-lg px-4 py-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 Compressed to {getFileSizeMB(compressedFile).toFixed(2)} MB
               </div>
             )}
 
             {/* Size warning */}
             {isCompressionNeeded && !compressedFile && (
-              <div className="flex items-center gap-2 text-[12px] text-[#92400e] bg-[#fffbeb] border border-[#fef3c7] rounded-lg px-4 py-2.5">
+              <div className="flex items-center gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
                 File exceeds 24 MB — compress before transcribing.
               </div>
             )}
@@ -326,7 +328,7 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
                 <button
                   onClick={compressAudio}
                   disabled={isCompressing}
-                  className="inline-flex items-center gap-2 text-[13px] font-medium text-[#0a0a0a] border border-[#e5e5e5] px-4 py-2 rounded-md hover:bg-[#fafafa] transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 text-[13px] font-medium text-indigo-700 border border-indigo-200 px-4 py-2 rounded-full hover:bg-indigo-50 transition-colors disabled:opacity-50"
                 >
                   {isCompressing
                     ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Compressing...</>
@@ -337,7 +339,7 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
               <button
                 onClick={handleTranscribe}
                 disabled={isTranscribeDisabled || !selectedFile}
-                className="inline-flex items-center gap-2 text-[13px] font-medium bg-[#0a0a0a] text-white px-5 py-2 rounded-md hover:bg-[#333] transition-colors disabled:opacity-40 ml-auto"
+                className="inline-flex items-center gap-2 text-[13px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-5 py-2 rounded-full hover:shadow-lg hover:shadow-indigo-500/25 transition-all disabled:opacity-40 ml-auto"
               >
                 <span>Transcribe</span><ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -347,18 +349,18 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
 
         {/* Monitored files */}
         {monitoredFiles.length > 0 && !selectedFile && (
-          <div className="mt-5 pt-5 border-t border-[#eee]">
-            <p className="text-[11px] font-medium text-[#999] uppercase tracking-wider mb-3">Monitored files</p>
+          <div className="mt-5 pt-5 border-t border-indigo-100/60">
+            <p className="text-[11px] font-medium text-indigo-400 uppercase tracking-wider mb-3">Monitored files</p>
             <div className="space-y-1.5">
               {monitoredFiles.map((file) => (
                 <button
                   key={file.name}
                   onClick={() => handleMonitoredFileSelect(file.name)}
-                  className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-md hover:bg-[#fafafa] border border-transparent hover:border-[#eee] transition-all"
+                  className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-xl hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all"
                 >
-                  <FileAudio className="w-4 h-4 text-[#bbb] flex-shrink-0" />
-                  <span className="text-[13px] text-[#444] truncate flex-1">{file.name}</span>
-                  <span className="text-[11px] text-[#bbb] flex-shrink-0">
+                  <FileAudio className="w-4 h-4 text-indigo-300 flex-shrink-0" />
+                  <span className="text-[13px] text-[#4a4a6a] truncate flex-1">{file.name}</span>
+                  <span className="text-[11px] text-indigo-300 flex-shrink-0">
                     {(file.size / (1024 * 1024)).toFixed(1)} MB
                   </span>
                 </button>

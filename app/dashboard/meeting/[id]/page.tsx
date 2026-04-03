@@ -266,16 +266,16 @@ export default function MeetingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#0a0a0a]">
+    <div className="min-h-screen bg-gradient-to-b from-[#f8f7ff] via-white to-[#f0f4ff] text-[#1a1637]">
       {/* Nav */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-sm border-b border-[#e5e5e5]">
+      <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-indigo-100/60">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-[15px] font-semibold tracking-tight">
+          <Link href="/" className="text-[15px] font-semibold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
             MeetingMind
           </Link>
           <button
             onClick={handleGoBack}
-            className="flex items-center gap-1.5 text-[13px] text-[#666] hover:text-[#0a0a0a] transition-colors"
+            className="flex items-center gap-1.5 text-[13px] text-indigo-400 hover:text-indigo-600 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Dashboard
@@ -285,28 +285,30 @@ export default function MeetingPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-10">
         {isDemo && (
-          <div className="flex items-center gap-2 text-[12px] text-[#92400e] bg-[#fffbeb] border border-[#fef3c7] rounded-lg px-4 py-2.5 mb-6">
+          <div className="flex items-center gap-2 text-[12px] text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2.5 mb-6">
             This is example data for demonstration purposes.
           </div>
         )}
 
         {error ? (
-          <div className="border border-[#e5e5e5] rounded-xl py-16 text-center">
-            <div className="w-12 h-12 rounded-full bg-[#fef2f2] flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-6 h-6 text-[#ef4444]" />
+          <div className="border border-indigo-100/80 rounded-2xl py-16 text-center bg-white/80 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-6 h-6 text-rose-500" />
             </div>
-            <p className="text-[15px] font-medium text-[#0a0a0a] mb-1">{error}</p>
+            <p className="text-[15px] font-medium text-[#1a1637] mb-1">{error}</p>
             <button
               onClick={handleGoBack}
-              className="text-[13px] text-[#666] hover:text-[#0a0a0a] transition-colors mt-2"
+              className="text-[13px] text-indigo-500 hover:text-indigo-700 transition-colors mt-2"
             >
               Back to Dashboard
             </button>
           </div>
         ) : !data ? (
-          <div className="border border-[#e5e5e5] rounded-xl py-16 text-center">
-            <Loader2 className="w-5 h-5 text-[#999] animate-spin mx-auto mb-3" />
-            <p className="text-[14px] text-[#999]">Loading meeting details...</p>
+          <div className="border border-indigo-100/80 rounded-2xl py-16 text-center bg-white/80 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mx-auto mb-3">
+              <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+            </div>
+            <p className="text-[14px] text-[#8a8aa8]">Loading meeting details...</p>
           </div>
         ) : (
           <MeetingDetails data={data} />
