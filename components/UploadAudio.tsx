@@ -135,20 +135,26 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
     formData.append('fullPath', fileToUpload.name);
 
     try {
-      await fetch('/api/transcribe', {
+      const response = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData,
       });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Transcription failed');
+      }
+
       toast({
-        title: 'Transcription Started',
-        description: 'Your file is being transcribed.',
+        title: 'Transcription Complete',
+        description: 'Your meeting has been analyzed successfully.',
       });
       onUploadSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Transcription error:', error);
       toast({
         title: 'Transcription Failed',
-        description: 'An error occurred while transcribing.',
+        description: error.message || 'An error occurred while transcribing.',
         variant: 'destructive',
       });
     } finally {
