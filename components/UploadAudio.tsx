@@ -1,15 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast"
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
+import { FileAudio, FileVideo, Upload, X, Loader2, ArrowRight } from 'lucide-react';
 
-const ffmpeg = new FFmpeg();
+let ffmpeg: any = null;
 
 interface MonitoredFile {
   name: string;
@@ -23,11 +18,13 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [compressedFile, setCompressedFile] = useState<File | null>(null);
   const [monitoredFiles, setMonitoredFiles] = useState<MonitoredFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchMonitoredFiles();
-    const interval = setInterval(fetchMonitoredFiles, 10000); // Poll every 10 seconds
+    const interval = setInterval(fetchMonitoredFiles, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -45,6 +42,16 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setCompressedFile(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
     if (file) {
       setSelectedFile(file);
       setCompressedFile(null);
@@ -71,6 +78,10 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
   };
 
   const loadFFmpeg = async () => {
+    if (!ffmpeg) {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+      ffmpeg = new FFmpeg();
+    }
     if (!ffmpeg.loaded) {
       await ffmpeg.load();
     }
@@ -81,19 +92,13 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
     setIsCompressing(true);
     try {
       await loadFFmpeg();
+      const { fetchFile } = await import('@ffmpeg/util');
       await ffmpeg.writeFile('input_audio', await fetchFile(selectedFile));
-
-      // Set target bitrate to reduce file size
-      // Adjust parameters as needed
       await ffmpeg.exec([
-        '-i',
-        'input_audio',
-        '-ar',
-        '16000',
-        '-ac',
-        '1',
-        '-b:a',
-        '16k',
+        '-i', 'input_audio',
+        '-ar', '16000',
+        '-ac', '1',
+        '-b:a', '16k',
         'output_audio.mp3'
       ]);
 
@@ -136,14 +141,14 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
       });
       toast({
         title: 'Transcription Started',
-        description: 'Your audio is being transcribed.',
+        description: 'Your file is being transcribed.',
       });
       onUploadSuccess();
     } catch (error) {
       console.error('Transcription error:', error);
       toast({
         title: 'Transcription Failed',
-        description: 'An error occurred while transcribing the audio.',
+        description: 'An error occurred while transcribing.',
         variant: 'destructive',
       });
     } finally {
@@ -157,64 +162,167 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
     return file ? file.size / (1024 ** 2) : 0;
   };
 
+  const isVideo = selectedFile?.type.startsWith('video/');
   const isCompressionNeeded = selectedFile && getFileSizeMB(selectedFile) > 24;
   const isTranscribeDisabled =
     (selectedFile && getFileSizeMB(selectedFile) > 24 && (!compressedFile || getFileSizeMB(compressedFile) > 24)) ||
     isCompressing ||
     isTranscribing;
 
+  const clearFile = () => {
+    setSelectedFile(null);
+    setCompressedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload New Audio</CardTitle>
-        <CardDescription>Select an audio file to transcribe</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-4">
-          <Label htmlFor="audio-file">Audio File</Label>
-          <Input
-            id="audio-file"
-            type="file"
-            accept="audio/*"
-            onChange={handleFileChange}
-          />
-          {selectedFile && (
-            <p>Selected File: {selectedFile.name} ({getFileSizeMB(selectedFile).toFixed(2)} MB)</p>
-          )}
-          {monitoredFiles.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Monitored Files:</h3>
-              <ul className="space-y-2">
-                {monitoredFiles.map((file) => (
-                  <li key={file.name} className="flex items-center justify-between">
-                    <span>{file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)</span>
-                    <Button onClick={() => handleMonitoredFileSelect(file.name)}>Select</Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {isCompressionNeeded && (
-            <Button onClick={compressAudio} disabled={isCompressing}>
-              {isCompressing ? 'Compressing...' : 'Compress Audio'}
-            </Button>
-          )}
-          {compressedFile && (
-            <p>Compressed File: {compressedFile.name} ({getFileSizeMB(compressedFile).toFixed(2)} MB)</p>
-          )}
-          <Button onClick={handleTranscribe} disabled={isTranscribeDisabled}>
-            {isTranscribing ? 'Transcribing...' : 'Transcribe Audio'}
-          </Button>
-          {isTranscribeDisabled && (
-            <p className="text-red-500">
-              {selectedFile && getFileSizeMB(compressedFile || selectedFile) > 24
-                ? 'File size exceeds 24 MB, please compress the file before transcribing.'
-                : ''}
-            </p>
-          )}
+    <div className="border border-[#e5e5e5] rounded-xl overflow-hidden bg-white">
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+        <div className="flex items-center gap-2">
+          <Upload className="w-3.5 h-3.5 text-[#999]" />
+          <span className="text-[13px] font-medium text-[#0a0a0a]">Upload recording</span>
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex items-center gap-1.5">
+          {['MP3', 'WAV', 'M4A', 'MP4', 'WEBM', 'MOV'].map(fmt => (
+            <span key={fmt} className="text-[10px] font-medium text-[#999] bg-white border border-[#eee] px-1.5 py-0.5 rounded">
+              {fmt}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,video/*"
+        onChange={handleFileChange}
+        className="hidden"
+        id="file-upload"
+      />
+
+      {/* Drop zone or file preview */}
+      <div className="p-5">
+        {!selectedFile ? (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+              isDragging ? 'border-[#0a0a0a] bg-[#fafafa]' : 'border-[#ddd] hover:border-[#aaa]'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-8 mb-4">
+              <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-full bg-[#f5f5f5] flex items-center justify-center mb-2">
+                  <FileAudio className="w-5 h-5 text-[#888]" />
+                </div>
+                <span className="text-[12px] text-[#999]">Audio</span>
+              </div>
+              <div className="text-[12px] text-[#ccc] font-medium">or</div>
+              <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-full bg-[#f5f5f5] flex items-center justify-center mb-2">
+                  <FileVideo className="w-5 h-5 text-[#888]" />
+                </div>
+                <span className="text-[12px] text-[#999]">Video</span>
+              </div>
+            </div>
+            <p className="text-[13px] text-[#666]">
+              Drag and drop your file here, or <span className="text-[#0a0a0a] font-medium underline underline-offset-2">browse</span>
+            </p>
+            <p className="text-[11px] text-[#bbb] mt-1.5">
+              Audio track will be extracted from video files automatically
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Selected file */}
+            <div className="flex items-center gap-3 border border-[#e5e5e5] rounded-lg px-4 py-3 bg-[#fafafa]">
+              <div className="w-8 h-8 rounded-full bg-[#f0f0f0] flex items-center justify-center flex-shrink-0">
+                {isVideo
+                  ? <FileVideo className="w-4 h-4 text-[#666]" />
+                  : <FileAudio className="w-4 h-4 text-[#666]" />
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-[#0a0a0a] truncate">{selectedFile.name}</p>
+                <p className="text-[11px] text-[#999]">
+                  {getFileSizeMB(selectedFile).toFixed(2)} MB
+                  {isVideo && <span className="ml-2 text-[#bbb]">Audio will be extracted</span>}
+                </p>
+              </div>
+              <button onClick={clearFile} className="p-1 rounded hover:bg-[#eee] transition-colors text-[#999] hover:text-[#666]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Compressed file */}
+            {compressedFile && (
+              <div className="flex items-center gap-2 text-[12px] text-[#666] bg-[#f0fdf4] border border-[#dcfce7] rounded-lg px-4 py-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Compressed to {getFileSizeMB(compressedFile).toFixed(2)} MB
+              </div>
+            )}
+
+            {/* Size warning */}
+            {isCompressionNeeded && !compressedFile && (
+              <div className="flex items-center gap-2 text-[12px] text-[#92400e] bg-[#fffbeb] border border-[#fef3c7] rounded-lg px-4 py-2.5">
+                File exceeds 24 MB — compress before transcribing.
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 pt-1">
+              {isCompressionNeeded && !compressedFile && (
+                <button
+                  onClick={compressAudio}
+                  disabled={isCompressing}
+                  className="inline-flex items-center gap-2 text-[13px] font-medium text-[#0a0a0a] border border-[#e5e5e5] px-4 py-2 rounded-md hover:bg-[#fafafa] transition-colors disabled:opacity-50"
+                >
+                  {isCompressing
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Compressing...</>
+                    : 'Compress file'
+                  }
+                </button>
+              )}
+              <button
+                onClick={handleTranscribe}
+                disabled={isTranscribeDisabled || !selectedFile}
+                className="inline-flex items-center gap-2 text-[13px] font-medium bg-[#0a0a0a] text-white px-5 py-2 rounded-md hover:bg-[#333] transition-colors disabled:opacity-40 ml-auto"
+              >
+                {isTranscribing
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Transcribing...</>
+                  : <><span>Transcribe</span><ArrowRight className="w-3.5 h-3.5" /></>
+                }
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Monitored files */}
+        {monitoredFiles.length > 0 && !selectedFile && (
+          <div className="mt-5 pt-5 border-t border-[#eee]">
+            <p className="text-[11px] font-medium text-[#999] uppercase tracking-wider mb-3">Monitored files</p>
+            <div className="space-y-1.5">
+              {monitoredFiles.map((file) => (
+                <button
+                  key={file.name}
+                  onClick={() => handleMonitoredFileSelect(file.name)}
+                  className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-md hover:bg-[#fafafa] border border-transparent hover:border-[#eee] transition-all"
+                >
+                  <FileAudio className="w-4 h-4 text-[#bbb] flex-shrink-0" />
+                  <span className="text-[13px] text-[#444] truncate flex-1">{file.name}</span>
+                  <span className="text-[11px] text-[#bbb] flex-shrink-0">
+                    {(file.size / (1024 * 1024)).toFixed(1)} MB
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

@@ -1,99 +1,101 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import axios from 'axios'
-import fs from 'fs'
-import path from 'path'
 import { prisma } from '@/lib/prisma'
+import Groq from 'groq-sdk'
+import { File as FormDataFile } from 'buffer'
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+const ANALYSIS_PROMPT = `You are a meeting analyst. Analyze the following meeting transcript and extract structured information.
+
+Return a valid JSON object with exactly this structure (no markdown, no code fences, just raw JSON):
+{
+  "Meeting Name": "string - a short descriptive title for the meeting",
+  "Description": "string - one paragraph summary of what the meeting was about",
+  "Summary": "string - detailed summary of the meeting",
+  "Tasks": [{"description": "string", "owner": "string", "due_date": "YYYY-MM-DD or null"}],
+  "Decisions": [{"description": "string", "date": "YYYY-MM-DD"}],
+  "Questions": [{"question": "string", "status": "Answered or Unanswered", "answer": "string or null"}],
+  "Insights": [{"insight": "string", "reference": "string - quote or context from transcript"}],
+  "Deadlines": [{"description": "string", "date": "YYYY-MM-DD or null"}],
+  "Attendees": [{"name": "string", "role": "string"}],
+  "Follow-ups": [{"description": "string", "owner": "string"}],
+  "Risks": [{"risk": "string", "impact": "string"}],
+  "Agenda": ["string"]
+}
+
+If a category has no items, return an empty array. For dates you cannot determine, use null.
+Extract as much detail as possible from the transcript.
+
+TRANSCRIPT:
+`
+
+export const maxDuration = 60
 
 export const POST = async (request: NextRequest) => {
   try {
     console.log('Received POST request to /api/transcribe')
     const formData = await request.formData()
     const file = formData.get('audio') as File
-    const fullPath = formData.get('fullPath') as string
-
-    console.log('Received file:', file?.name)
-    console.log('Full path:', fullPath)
 
     if (!file) {
-      console.error('No audio file provided')
       return NextResponse.json({ error: 'No audio file provided.' }, { status: 400 })
     }
 
-    // Convert File to Buffer
+    console.log('Received file:', file.name)
+
+    // Convert file to buffer (no disk writes — works on Vercel)
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Define directory
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+    // Create a File object that Groq SDK accepts
+    const audioFile = new File([buffer], file.name, { type: file.type })
 
-    // Ensure directory exists
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true })
-    }
-
-    // Save the file
-    const fileName = `${Date.now()}-${file.name}`
-    const filePath = path.join(uploadsDir, fileName)
-    fs.writeFileSync(filePath, buffer)
-
-    console.log('File saved at:', filePath)
-
-    // Get the API URL from the environment variable
-    const apiUrl = process.env.LANGFLOW_FLOW_URL
-
-    if (!apiUrl) {
-      throw new Error('LANGFLOW_FLOW_URL is not defined in the environment variables')
-    }
-
-    // Prepare JSON payload
-    const payload = {
-      output_type: 'text',
-      input_type: 'text',
-      tweaks: {
-        'GroqWhisperComponent-Lep46': {
-          audio_file: filePath // Use the full path of the saved file
-        },         
-      }
-    }
-
-    console.log('Sending request to API:', apiUrl)
-
-    // Send POST request to the transcription API
-    const apiResponse = await axios.post(apiUrl, payload, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    // Step 1: Transcribe audio using Groq Whisper
+    console.log('Starting transcription with Groq Whisper...')
+    const transcription = await groq.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-large-v3',
+      language: 'en',
     })
 
-    console.log('Received response from API')
-    
-    // Ensure the response has the expected structure
-    if (!apiResponse.data || !apiResponse.data.outputs) {
-      throw new Error('Invalid API response structure.')
+    const rawTranscript = transcription.text
+    console.log('Transcription complete:', rawTranscript.substring(0, 100) + '...')
+
+    if (!rawTranscript || rawTranscript.trim().length === 0) {
+      throw new Error('Transcription returned empty text.')
     }
 
-    const { outputs } = apiResponse.data
-    const analyzedTranscript = outputs[0]?.outputs[0]?.results?.breakdown?.text
-    const rawTranscript = outputs[0]?.outputs[1]?.results?.transcription?.text
+    // Step 2: Analyze transcript using Groq LLM
+    console.log('Analyzing transcript with Groq LLM...')
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'user',
+          content: ANALYSIS_PROMPT + rawTranscript,
+        },
+      ],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.1,
+      max_tokens: 4096,
+    })
 
-    if (!analyzedTranscript || !rawTranscript) {
-      throw new Error('Invalid API response structure.')
+    const analysisText = chatCompletion.choices[0]?.message?.content
+    if (!analysisText) {
+      throw new Error('LLM analysis returned empty response.')
     }
-    console.log('Analyzed transcript:', analyzedTranscript.substring(0, 100) + '...')
-    console.log('Raw transcript:', rawTranscript.substring(0, 100) + '...')
 
-    // Parse JSON strings
+    console.log('Analysis complete, parsing JSON...')
+
+    // Parse the JSON response
     let analyzedData
     try {
-      analyzedData = JSON.parse(analyzedTranscript)
+      const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      analyzedData = JSON.parse(cleanJson)
     } catch (parseError) {
+      console.error('Failed to parse LLM response:', analysisText)
       throw new Error('Failed to parse analyzed transcript JSON.')
     }
-
-    const rawData = rawTranscript
-    console.log('Analyzed Data:', JSON.stringify(analyzedData, null, 2))
-    console.log('Saving to database...')
 
     // Helper function to format dates as ISO strings
     const formatDate = (date: string) => {
@@ -101,12 +103,13 @@ export const POST = async (request: NextRequest) => {
       return !isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : null
     }
 
-    // Save to database with safe access
+    // Save to database
+    console.log('Saving to database...')
     const meeting = await prisma.meeting.create({
       data: {
         name: analyzedData['Meeting Name'] || 'Untitled Meeting',
         description: analyzedData['Description'] || 'No description provided.',
-        rawTranscript: rawData,
+        rawTranscript: rawTranscript,
         summary: analyzedData['Summary'] || '',
         tasks: {
           create: (analyzedData['Tasks'] || [])
@@ -200,6 +203,9 @@ export const POST = async (request: NextRequest) => {
     return NextResponse.json(meeting, { status: 200 })
   } catch (error: any) {
     console.error('Error in /api/transcribe:', error)
-    return NextResponse.json({ error: 'An error occurred during processing.' }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || 'An error occurred during processing.' },
+      { status: 500 }
+    )
   }
 }

@@ -1,10 +1,8 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   CheckCircle,
   Flag,
@@ -16,14 +14,11 @@ import {
   AlertTriangle,
   FileText,
   Download,
+  MessageSquare,
 } from "lucide-react"
 import CategoryCard from "@/components/CategoryCard"
 import axios from "axios"
 import { useToast } from "@/hooks/use-toast"
-
-interface CategoryItem {
-  [key: string]: string
-}
 
 interface MeetingDetailsProps {
   data: {
@@ -47,6 +42,7 @@ interface MeetingDetailsProps {
 
 export default function MeetingDetails({ data }: MeetingDetailsProps) {
   const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState<"summary" | "details">("summary")
 
   const categories = [
     { title: "Tasks", icon: CheckCircle, items: data.breakdown.Tasks || [], gridSpan: "col-span-2" },
@@ -64,7 +60,6 @@ export default function MeetingDetails({ data }: MeetingDetailsProps) {
       const response = await axios.get(`/api/meetings/${data.id}/export`, {
         responseType: 'blob',
       })
-
       if (response.status === 200) {
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
@@ -73,87 +68,130 @@ export default function MeetingDetails({ data }: MeetingDetailsProps) {
         document.body.appendChild(link)
         link.click()
         link.parentNode?.removeChild(link)
-        toast({
-          title: "Success",
-          description: "Meeting details exported successfully!",
-        })
+        toast({ title: "Success", description: "Meeting details exported successfully!" })
       }
     } catch (error: any) {
       console.error(error)
-      toast({
-        title: "Error",
-        description: "Failed to export meeting details.",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to export meeting details.", variant: "destructive" })
     }
   }
 
+  const totalItems = categories.reduce((sum, c) => sum + c.items.length, 0)
+
   return (
-    <div className="container mx-auto p-6 bg-background">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold">{data.name}</h1>
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-[-0.025em] mb-1">
+            {data.name}
+          </h1>
+          <p className="text-[14px] text-[#666]">{data.description}</p>
+        </div>
+        {!data.id.startsWith('demo-') && (
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 text-[13px] font-medium bg-[#0a0a0a] text-white px-4 py-2 rounded-md hover:bg-[#333] transition-colors flex-shrink-0"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export DOCX
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-[#e5e5e5] mb-8">
         <button
-          onClick={handleExport}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          onClick={() => setActiveTab("summary")}
+          className={`px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors -mb-px ${
+            activeTab === "summary"
+              ? "border-[#0a0a0a] text-[#0a0a0a]"
+              : "border-transparent text-[#999] hover:text-[#666]"
+          }`}
         >
-          <Download className="w-5 h-5 mr-2" />
-          Export as DOCX
+          Summary
+        </button>
+        <button
+          onClick={() => setActiveTab("details")}
+          className={`px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors -mb-px ${
+            activeTab === "details"
+              ? "border-[#0a0a0a] text-[#0a0a0a]"
+              : "border-transparent text-[#999] hover:text-[#666]"
+          }`}
+        >
+          Details
+          <span className="ml-1.5 text-[11px] text-[#999] bg-[#f5f5f5] px-1.5 py-0.5 rounded">
+            {totalItems}
+          </span>
         </button>
       </div>
-      <p className="text-muted-foreground mb-6">{data.description}</p>
-      <Tabs defaultValue="summary" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="details">Details</TabsTrigger>
-        </TabsList>
-        <TabsContent value="summary">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  <span>Summary</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{data.summary}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  <span>Transcript</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[300px]">
-                  <p>{data.transcript}</p>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+
+      {/* Summary Tab */}
+      {activeTab === "summary" && (
+        <div className="space-y-6">
+          {/* Summary */}
+          <div className="border border-[#e5e5e5] rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+              <FileText className="w-3.5 h-3.5 text-[#999]" />
+              <span className="text-[13px] font-medium">Summary</span>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[14px] leading-relaxed text-[#444]">{data.summary}</p>
+            </div>
           </div>
-        </TabsContent>
-        <TabsContent value="details">
-          <div className="grid grid-cols-4 gap-6">
-            {categories.map((category, index) => (
-              <motion.div
-                key={category.title}
-                className={category.gridSpan}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <CategoryCard
-                  title={category.title}
-                  items={category.items}
-                  gridSpan={category.gridSpan}
-                />
-              </motion.div>
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Tasks", count: data.breakdown.Tasks?.length || 0 },
+              { label: "Decisions", count: data.breakdown.Decisions?.length || 0 },
+              { label: "Attendees", count: data.breakdown.Attendees?.length || 0 },
+              { label: "Risks", count: data.breakdown.Risks?.length || 0 },
+            ].map((stat) => (
+              <div key={stat.label} className="border border-[#e5e5e5] rounded-lg px-4 py-3">
+                <p className="text-[22px] font-bold tracking-tight">{stat.count}</p>
+                <p className="text-[12px] text-[#999]">{stat.label}</p>
+              </div>
             ))}
           </div>
-        </TabsContent>
-      </Tabs>
+
+          {/* Transcript */}
+          <div className="border border-[#e5e5e5] rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+              <MessageSquare className="w-3.5 h-3.5 text-[#999]" />
+              <span className="text-[13px] font-medium">Transcript</span>
+            </div>
+            <div className="px-5 py-4">
+              <ScrollArea className="h-[300px]">
+                <p className="text-[13px] leading-[1.8] text-[#555] whitespace-pre-wrap font-mono">
+                  {data.transcript}
+                </p>
+              </ScrollArea>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Details Tab */}
+      {activeTab === "details" && (
+        <div className="grid grid-cols-4 gap-4">
+          {categories.map((category, index) => (
+            <motion.div
+              key={category.title}
+              className={category.gridSpan}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.05, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              <CategoryCard
+                title={category.title}
+                items={category.items}
+                gridSpan={category.gridSpan}
+              />
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
