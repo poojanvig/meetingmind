@@ -16,6 +16,7 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribeStep, setTranscribeStep] = useState('');
   const [compressedFile, setCompressedFile] = useState<File | null>(null);
   const [monitoredFiles, setMonitoredFiles] = useState<MonitoredFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -130,9 +131,21 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
     if (!fileToUpload) return;
 
     setIsTranscribing(true);
+    setTranscribeStep('Uploading file...');
     const formData = new FormData();
     formData.append('audio', fileToUpload);
     formData.append('fullPath', fileToUpload.name);
+
+    // Simulate step progression while waiting for the API
+    const steps = [
+      { text: 'Transcribing audio...', delay: 2000 },
+      { text: 'Analyzing transcript...', delay: 12000 },
+      { text: 'Extracting insights...', delay: 20000 },
+      { text: 'Saving to database...', delay: 28000 },
+    ];
+    const timers = steps.map(step =>
+      setTimeout(() => setTranscribeStep(step.text), step.delay)
+    );
 
     try {
       const response = await fetch('/api/transcribe', {
@@ -158,7 +171,9 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
         variant: 'destructive',
       });
     } finally {
+      timers.forEach(clearTimeout);
       setIsTranscribing(false);
+      setTranscribeStep('');
       setSelectedFile(null);
       setCompressedFile(null);
     }
@@ -241,6 +256,33 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
               Audio track will be extracted from video files automatically
             </p>
           </div>
+        ) : isTranscribing ? (
+          <div className="flex flex-col items-center justify-center py-10">
+            <Loader2 className="w-8 h-8 text-[#0a0a0a] animate-spin mb-4" />
+            <p className="text-[14px] font-medium text-[#0a0a0a] mb-1">{transcribeStep}</p>
+            <p className="text-[12px] text-[#999]">This may take up to a minute depending on file size</p>
+            <div className="flex items-center gap-2 mt-5">
+              {['Uploading', 'Transcribing', 'Analyzing', 'Saving'].map((step, i) => (
+                <div key={step} className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full transition-colors ${
+                    transcribeStep.toLowerCase().includes(step.toLowerCase())
+                      ? 'bg-[#0a0a0a] scale-110'
+                      : ['Uploading', 'Transcribing', 'Analyzing', 'Saving']
+                          .indexOf(step) < ['Uploading', 'Transcribing', 'Analyzing', 'Saving']
+                          .findIndex(s => transcribeStep.toLowerCase().includes(s.toLowerCase()))
+                        ? 'bg-[#0a0a0a]'
+                        : 'bg-[#ddd]'
+                  }`} />
+                  {i < 3 && <div className="w-6 h-px bg-[#e5e5e5]" />}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 mt-3">
+              {['Upload', 'Transcribe', 'Analyze', 'Save'].map((label) => (
+                <span key={label} className="text-[10px] text-[#bbb] w-8 text-center">{label}</span>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="space-y-3">
             {/* Selected file */}
@@ -297,10 +339,7 @@ const UploadAudio: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSucces
                 disabled={isTranscribeDisabled || !selectedFile}
                 className="inline-flex items-center gap-2 text-[13px] font-medium bg-[#0a0a0a] text-white px-5 py-2 rounded-md hover:bg-[#333] transition-colors disabled:opacity-40 ml-auto"
               >
-                {isTranscribing
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Transcribing...</>
-                  : <><span>Transcribe</span><ArrowRight className="w-3.5 h-3.5" /></>
-                }
+                <span>Transcribe</span><ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
